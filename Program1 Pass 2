@@ -1,0 +1,174 @@
+import java.util.*;
+import java.io.*;
+
+class Tuple {
+    String mnemonic, bin_opcode, type;
+    int length;
+
+    Tuple() {}
+
+    Tuple(String s1, String s2, String s3, String s4) {
+        mnemonic = s1;
+        bin_opcode = s2;
+        length = Integer.parseInt(s3);
+        type = s4;
+    }
+}
+
+class SymTuple {
+    String symbol, ra;
+    int value, length;
+
+    SymTuple(String s1, int i1, int i2, String s2) {
+        symbol = s1;
+        value = i1;
+        length = i2;
+        ra = s2;
+    }
+}
+
+class LitTuple {
+    String literal, ra;
+    int value, length;
+
+    LitTuple() {}
+
+    LitTuple(String s1, int i1, int i2, String s2) {
+        literal = s1;
+        value = i1;
+        length = i2;
+        ra = s2;
+    }
+}
+
+public class  P2{
+    static int lc;
+    static List<Tuple> mot;
+    static List<String> pot;
+    static List<SymTuple> symtable;
+    static List<LitTuple> littable;
+    static List<Integer> lclist;
+    static Map<Integer, Integer> basetable;
+    static PrintWriter out_pass2;
+    static PrintWriter out_pass1;
+    static int line_no;
+
+    public static void main(String[] args) throws Exception {
+        initializeTables();
+        System.out.println("====== PASS 1 ======\n");
+        pass1();
+        System.out.println("\n====== PASS 2 ======\n");
+        pass2();
+    }
+
+    static void pass1() throws Exception {
+        try (BufferedReader input = new BufferedReader(new FileReader("input.txt"));
+             PrintWriter out_symtable = new PrintWriter(new FileWriter("out_symtable.txt"));
+             PrintWriter out_littable = new PrintWriter(new FileWriter("out_littable.txt"))) {
+
+            out_pass1 = new PrintWriter(new FileWriter("output_pass1.txt"));
+            String s;
+            while ((s = input.readLine()) != null) {
+                String[] s_arr = s.split(" ");
+                if (!searchPot1(s_arr)) {
+                    searchMot1(s_arr);
+                    out_pass1.println(s);
+                }
+                lclist.add(lc);
+            }
+
+            System.out.println("Symbol Table:");
+            for (SymTuple sym : symtable) {
+                System.out.println(sym.symbol + " " + sym.value + " " + sym.length + " " + sym.ra);
+                out_symtable.println(sym.symbol + " " + sym.value + " " + sym.length + " " + sym.ra);
+            }
+
+            System.out.println("\nLiteral Table:");
+            for (LitTuple lit : littable) {
+                System.out.println(lit.literal + " " + lit.value + " " + lit.length + " " + lit.ra);
+                out_littable.println(lit.literal + " " + lit.value + " " + lit.length + " " + lit.ra);
+            }
+        }
+    }
+
+    static void pass2() throws Exception {
+        line_no = 0;
+        out_pass2 = new PrintWriter(new FileWriter("output_pass2.txt"));
+
+        try (BufferedReader input = new BufferedReader(new FileReader("output_pass1.txt"))) {
+            String s;
+            System.out.println("Pass 2 input:");
+            while ((s = input.readLine()) != null) {
+                System.out.println(s);
+                String[] s_arr = s.split(" ");
+                if (!searchPot2(s_arr)) {
+                    searchMot2(s_arr);
+                }
+                line_no++;
+            }
+        }
+
+        System.out.println("\nPass 2 output:");
+        try (BufferedReader input = new BufferedReader(new FileReader("output_pass2.txt"))) {
+            String s;
+            while ((s = input.readLine()) != null) {
+                System.out.println(s);
+            }
+        }
+    }
+
+    static boolean searchPot1(String[] s) {
+        int potval = switch (s[0].toUpperCase()) {
+            case "DS", "DC" -> 1;
+            case "EQU" -> 2;
+            case "START" -> 3;
+            case "LTORG" -> 4;
+            case "END" -> 5;
+            default -> 0;
+        };
+
+        // Further processing based on potval logic here, including managing lc increment logic
+        return potval != 0;
+    }
+
+    static void searchMot1(String[] s) {
+        Tuple t = mot.stream().filter(x -> x.mnemonic.equals(s[0])).findFirst().orElse(null);
+        if (t != null) {
+            lc += t.length;
+            out_pass1.println(s[0] + " " + t.bin_opcode + " " + lc);
+        }
+    }
+
+    static void searchMot2(String[] s) {
+        // Handling search and output printing for MOT entries in pass 2
+    }
+
+    static boolean searchPot2(String[] s) {
+        // Handle pseudo-ops for pass 2
+        return pot.contains(s[0]);
+    }
+
+    static void initializeTables() throws IOException {
+        mot = new LinkedList<>();
+        pot = new LinkedList<>();
+        symtable = new LinkedList<>();
+        littable = new LinkedList<>();
+        lclist = new ArrayList<>();
+        basetable = new HashMap<>();
+
+        try (BufferedReader brMot = new BufferedReader(new FileReader("mot.txt"));
+             BufferedReader brPot = new BufferedReader(new FileReader("pot.txt"))) {
+
+            String line;
+            while ((line = brMot.readLine()) != null) {
+                String[] tokens = line.split(" ");
+                mot.add(new Tuple(tokens[0], tokens[1], tokens[2], tokens[3]));
+            }
+
+            while ((line = brPot.readLine()) != null) {
+                pot.add(line.trim());
+            }
+            Collections.sort(pot);
+        }
+    }
+}
