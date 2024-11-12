@@ -1,0 +1,109 @@
+import java.util.*;
+import java.io.*;
+
+class P3 {
+    static String[][] mnt = new String[5][3]; // Macro Name Table (MNT), assuming 5 macros in 1 program
+    static String[][] ala = new String[10][2]; // Argument List Array (ALA), assuming 2 arguments per macro
+    static String[][] mdt = new String[20][1]; // Macro Definition Table (MDT), assuming 20 lines
+    static int mntc = 0, mdtc = 0, alac = 0;
+
+    public static void main(String args[]) {
+        pass1();
+        System.out.println("\n********* PASS-1 MACROPROCESSOR ***********\n");
+        System.out.println("MACRO NAME TABLE (MNT)\n");
+        System.out.println("i    Macro   Loc");
+        display(mnt, mntc, 3);
+        System.out.println("\nARGUMENT LIST ARRAY (ALA) for Pass1\n");
+        display(ala, alac, 2);
+        System.out.println("\nMACRO DEFINITION TABLE (MDT)\n");
+        display(mdt, mdtc, 1);
+    }
+
+    static void pass1() {
+        String line, prev = "", substring;
+        int index, i;
+        
+        try (BufferedReader inp = new BufferedReader(new FileReader("input.txt"));
+             BufferedWriter output = new BufferedWriter(new FileWriter("pass1_output.txt"))) {
+            
+            while ((line = inp.readLine()) != null) {
+                if (line.equalsIgnoreCase("MACRO")) {
+                    prev = line;
+
+                    while (!(line = inp.readLine()).equalsIgnoreCase("MEND")) {
+                        mdtc++;
+                        if (prev.equalsIgnoreCase("MACRO")) {
+                            // Process macro name and parameters
+                            StringTokenizer st = new StringTokenizer(line);
+                            String[] tokens = new String[st.countTokens()];
+                            for (i = 0; i < tokens.length; i++) {
+                                tokens[i] = st.nextToken();
+                            }
+                            mnt[mntc][0] = String.valueOf(mntc + 1); // MNT index
+                            mnt[mntc][1] = tokens[0]; // Macro name
+                            mnt[mntc++][2] = String.valueOf(mdtc); // Location in MDT
+
+                            // Process arguments
+                            st = new StringTokenizer(tokens[1], ",");
+                            String[] args = new String[st.countTokens()];
+                            for (i = 0; i < args.length; i++) {
+                                args[i] = st.nextToken();
+                                ala[alac][0] = String.valueOf(alac); // ALA index
+                                index = args[i].indexOf("=");
+                                ala[alac++][1] = (index != -1) ? args[i].substring(0, index) : args[i];
+                            }
+                        } else {
+                            // Process the body of the macro, replacing arguments
+                            index = line.indexOf("&");
+                            if (index != -1) {
+                                substring = line.substring(index);
+                                for (i = 0; i < alac; i++) {
+                                    if (ala[i][1].equals(substring)) {
+                                        line = line.replaceAll(substring, "#" + ala[i][0]);
+                                    }
+                                }
+                            }
+                        }
+                        mdt[mdtc - 1][0] = line;
+                        prev = line;
+                    }
+                    mdt[mdtc - 1][0] = line; // Add MEND to MDT
+                } else {
+                    // Write non-macro lines to output
+                    output.write(line);
+                    output.newLine();
+                }
+            }
+        } catch (FileNotFoundException e) {
+            System.out.println("Unable to find input file.");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    static void display(String[][] table, int rows, int columns) {
+        for (int i = 0; i < rows; i++) {
+            for (int j = 0; j < columns; j++) {
+                System.out.print(table[i][j] + " ");
+            }
+            System.out.println();
+        }
+    }
+}
+/* INPUT
+START
+MACRO
+INCR &ARG3 &ARG2
+ADD AREG &ARG1
+MOVER BREG &ARG1
+MEND
+MACRO
+PVG &ARG2 &ARG1
+SUB AREG &ARG2
+MOVER CREG & ARG1
+MEND
+INCR
+DECR
+DATA2
+END
+*/
