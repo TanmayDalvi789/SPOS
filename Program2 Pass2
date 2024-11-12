@@ -1,0 +1,241 @@
+import java.util.*;
+import java.io.*;
+
+class MntTuple {
+    String name;
+    int index;
+
+    MntTuple(String s, int i) {
+        name = s;
+        index = i;
+    }
+
+    public String toString() {
+        return "[" + name + ", " + index + "]";
+    }
+}
+
+class MacroProcessor {
+    static List<MntTuple> mnt;
+    static List<String> mdt;
+    static int mntc;
+    static int mdtc;
+    static int mdtp;
+    static BufferedReader input;
+    static List<List<String>> ala;
+    static Map<String, Integer> alaMacroBinding;
+
+    public static void main(String args[]) throws Exception {
+        initializeTables();
+        System.out.println("===== PASS 1 =====\n");
+        pass1();
+        System.out.println("\n===== PASS 2 =====\n");
+        pass2();
+    }
+
+    static void pass1() throws Exception {
+        input = new BufferedReader(new InputStreamReader(new FileInputStream("input.txt")));
+        PrintWriter output = new PrintWriter(new FileOutputStream("output_pass1.txt"), true);
+
+        String s;
+        while ((s = input.readLine()) != null) {
+            if (s.equalsIgnoreCase("MACRO")) {
+                processMacroDefinition();
+            } else {
+                output.println(s);
+            }
+        }
+        System.out.println("ALA:");
+        showAla(1);
+        System.out.println("\nMNT:");
+        showMnt();
+        System.out.println("\nMDT:");
+        showMdt();
+    }
+
+    static void processMacroDefinition() throws Exception {
+        String s = input.readLine();
+        String macroName = s.substring(0, s.indexOf(" "));
+        mnt.add(new MntTuple(macroName, mdtc));
+        mntc++;
+        pass1Ala(s);
+
+        StringTokenizer st = new StringTokenizer(s, " ,", false);
+        String line = st.nextToken();
+        while (line.length() < 12) {
+            line += " ";
+        }
+        while (st.hasMoreTokens()) {
+            line += "," + st.nextToken();
+        }
+        mdt.add(line);
+        mdtc++;
+        addIntoMdt(ala.size() - 1);
+    }
+
+    static void pass1Ala(String s) {
+        StringTokenizer st = new StringTokenizer(s, " ,", false);
+        st.nextToken(); // Skip macro name
+        List<String> argsList = new ArrayList<>();
+
+        while (st.hasMoreTokens()) {
+            String arg = st.nextToken();
+            int index = arg.indexOf("=");
+            if (index != -1) {
+                arg = arg.substring(0, index);
+            }
+            argsList.add(arg);
+        }
+        ala.add(argsList);
+        alaMacroBinding.put(s.split(" ")[0], alaMacroBinding.size());
+    }
+
+    static void addIntoMdt(int alaNumber) throws Exception {
+        String s;
+        List<String> argList = ala.get(alaNumber);
+
+        while (!(s = input.readLine()).equalsIgnoreCase("MEND")) {
+            StringTokenizer st = new StringTokenizer(s, " ,", false);
+            String line = st.nextToken();
+            while (line.length() < 12) {
+                line += " ";
+            }
+
+            while (st.hasMoreTokens()) {
+                String token = st.nextToken();
+                if (token.startsWith("&")) {
+                    int index = argList.indexOf(token);
+                    line += ",#" + index;
+                } else {
+                    line += "," + token;
+                }
+            }
+            mdt.add(line);
+            mdtc++;
+        }
+        mdt.add("MEND");
+        mdtc++;
+    }
+
+    static void showAla(int pass) throws Exception {
+        PrintWriter out = new PrintWriter(new FileOutputStream("out_ala_pass" + pass + ".txt"), true);
+        for (List<String> l : ala) {
+            System.out.println(l);
+            out.println(l);
+        }
+        out.close();
+    }
+
+    static void showMnt() throws Exception {
+        PrintWriter out = new PrintWriter(new FileOutputStream("out_mnt.txt"), true);
+        for (MntTuple m : mnt) {
+            System.out.println(m);
+            out.println(m);
+        }
+        out.close();
+    }
+
+    static void showMdt() throws Exception {
+        PrintWriter out = new PrintWriter(new FileOutputStream("out_mdt.txt"), true);
+        for (String m : mdt) {
+            System.out.println(m);
+            out.println(m);
+        }
+        out.close();
+    }
+
+    static void pass2() throws Exception {
+        input = new BufferedReader(new InputStreamReader(new FileInputStream("output_pass1.txt")));
+        PrintWriter output = new PrintWriter(new FileOutputStream("output_pass2.txt"), true);
+
+        String s;
+        while ((s = input.readLine()) != null) {
+            StringTokenizer st = new StringTokenizer(s, " ", false);
+            String token = st.nextToken();
+            MntTuple macro = findMacroInMnt(token);
+
+            if (macro != null) {
+                mdtp = macro.index;
+                List<String> argumentList = pass2Ala(s);
+                while (!(s = mdt.get(++mdtp)).trim().equalsIgnoreCase("MEND")) {
+                    StringTokenizer st2 = new StringTokenizer(s, " ,", false);
+                    String line = st2.nextToken();
+
+                    while (st2.hasMoreTokens()) {
+                        String token2 = st2.nextToken();
+                        if (token2.startsWith("#")) {
+                            int index = Integer.parseInt(token2.substring(1));
+                            line += "," + argumentList.get(index);
+                        } else {
+                            line += "," + token2;
+                        }
+                    }
+                    output.println(line);
+                    System.out.println(line);
+                }
+            } else {
+                output.println(s);
+                System.out.println(s);
+            }
+        }
+        System.out.println("\nALA:");
+        showAla(2);
+    }
+
+    static MntTuple findMacroInMnt(String macroName) {
+        for (MntTuple m : mnt) {
+            if (m.name.equalsIgnoreCase(macroName)) {
+                return m;
+            }
+        }
+        return null;
+    }
+
+    static List<String> pass2Ala(String s) {
+        StringTokenizer st = new StringTokenizer(s, " ", false);
+        String macroName = st.nextToken();
+        int alaIndex = alaMacroBinding.get(macroName);
+        List<String> argList = new ArrayList<>(ala.get(alaIndex));
+
+        StringTokenizer st2 = new StringTokenizer(st.nextToken(), ",", false);
+        int ctr = 0;
+        while (st2.hasMoreTokens()) {
+            argList.set(ctr++, st2.nextToken());
+        }
+        return argList;
+    }
+
+    static void initializeTables() {
+        mnt = new ArrayList<>();
+        mdt = new ArrayList<>();
+        ala = new ArrayList<>();
+        alaMacroBinding = new HashMap<>();
+        mntc = 0;
+        mdtc = 0;
+    }
+}
+
+/*
+_______________________________________________
+INPUT
+MACRO
+INCR1 &FIRST,&SECOND=DATA9
+A 1,&FIRST
+L 2,&SECOND
+MEND
+MACRO
+INCR2 &ARG1,&ARG2=DATA5
+L 3,&ARG1
+ST 4,&ARG2
+MEND
+PRG2 START
+USING *,BASE
+INCR1 DATA1
+INCR2 DATA3,DATA4
+FOUR DC F'4'
+FIVE DC F'5'
+BASE EQU 8
+TEMP DS 1F
+DROP 8
+END
+_______________________________________________
